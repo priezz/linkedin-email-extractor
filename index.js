@@ -116,7 +116,7 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
         }
         if(person.retries >= MAX_RETRIES) continue;
 
-        person.retries = (person.retries || 0) + 1;
+        person.retries = +(person.retries || 0) + 1;
         processedCount++;
 
         const email = await fetchEmail(
