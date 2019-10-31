@@ -16,7 +16,7 @@ const OPTIONS = {
         type: 'password',
     },
     delayBetweenFetchesMs: {
-        initial: 2000,
+        initial: 3000,
         message: 'Wait interval between each connection search (in ms)',
         type: 'number',
     },
@@ -124,13 +124,14 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
             `${person.firstName} ${person.lastName}`,
             delayBetweenFetchesMs,
         );
-        if(knownEmails.includes(email)) {
-            console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
-            break;
+        if(email) {
+            person.email = email;
+            if(knownEmails.includes(email)) {
+                console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
+                break;
+            }
+            knownEmails.push(email);
         }
-
-        person.email = email;
-        knownEmails.push(email);
         writePeopleToFile(people);
     }
 }
