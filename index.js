@@ -21,7 +21,7 @@ const OPTIONS = {
         type: 'number',
     },
     maxCountToProcess: {
-        initial: 30,
+        initial: 100,
         message: 'Maximum number of connections to fetch',
         type: 'number',
     },
@@ -125,7 +125,7 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
             delayBetweenFetchesMs,
         );
         if(knownEmails.includes(email)) {
-            console.error('Stopped due to bot prevention mechanism. Please restart the script.');
+            console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
             break;
         }
 
