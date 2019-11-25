@@ -53,38 +53,46 @@ async function main() {
             if(person.firstName && person.lastName) people.push(person)
         })
         .on('end', async () => {
-            await startProcessing(people);
+            if(!people.length) {
+                console.log('No connections to fetch.');
+                return;
+            }
+
+            const options = await promptOptions();
+            await startProcessing(people, options);
+
             process.exit(0);
         });
 }
 
-async function startProcessing(people) {
-    if(!people.length) {
-        console.log('No connections to fetch.');
-        return;
-    }
-
-    const options = await promptOptions();
-
+async function startProcessing(people, options) {
     const scrapper = new Nightmare({
         show: false,
         waitTimeout: 20000,
     });
     if(!(await login(scrapper, options.userId, options.password))) return;
+    console.log('Logged in.');
 
-    console.log('Logged in, fetching emails...');
-    await fetchEmails(
+    const unprocessedPeople = people
+        .filter((person) => !person.email && (person.retries || 0) < options.maxRetries)
+        .length;
+    const connectionsToProcess = Math.min(options.maxCountToProcess, unprocessedPeople);
+    const processedCount = await fetchEmails(
         scrapper,
         people,
         {
-            connectionsToProcess: Math.min(options.maxCountToProcess, people.length),
+            connectionsToProcess: connectionsToProcess,
             delayBetweenFetchesMs: options.delayBetweenFetchesMs,
             maxRetries: options.maxRetries,
         },
     );
     await scrapper.end();
-    console.log('Fetching finished.');
-    process.exit(0);
+    if(processedCount < connectionsToProcess) {
+        await new Promise((resolve) => setTimeout(resolve, 30000));
+        await startProcessing(people, options);
+    } else {
+        console.log('Fetching finished.');
+    }
 }
 
 
@@ -114,7 +122,7 @@ async function login(scrapper, userId, password) {
 
 
 async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetweenFetchesMs, maxRetries,}) {
-    console.log(`${connectionsToProcess}/${people.length} connections to extract...`);
+    console.log(`${connectionsToProcess}/${people.length} connections to fetch...`);
     const knownEmails = [];
     let processedCount = 0;
     let retriesAllowed = 0;
@@ -137,15 +145,20 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
             const email = await fetchEmail(
                 scrapper,
                 {
-                    name: `${person.firstName} ${person.lastName}`,
+                    company: person.company,
                     delayBetweenFetchesMs: delayBetweenFetchesMs,
                     maxRetries: maxRetries,
+                    name: `${person.firstName} ${person.lastName}`,
                 },
             );
+            // TODO: Count sequential failures and restart after the given number (5?)
             if(email) {
                 person.email = email;
                 if(knownEmails.includes(email)) {
-                    console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
+                    console.error(
+                        'Stopped due to detection of bot prevention mechanism. Restarting in 30 sec...',
+                    );
+                    breaked = true;
                     break;
                 }
                 knownEmails.push(email);
@@ -154,12 +167,14 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
         }
         retriesAllowed++;
     }
+
+    return processedCount;
 }
 
 
 /// Actual email extraction procedure
 /// Crawler looks for search input box, writes connection name, clicks on first result, copies connection's email
-async function fetchEmail(scrapper, {name, delayBetweenFetchesMs, maxRetries}) {
+async function fetchEmail(scrapper, {company, delayBetweenFetchesMs, maxRetries, name}) {
     try {
         await scrapper
             .wait('.nav-item--mynetwork')
@@ -168,6 +183,7 @@ async function fetchEmail(scrapper, {name, delayBetweenFetchesMs, maxRetries}) {
             .click('.mn-community-summary__link')
             .wait('.mn-connections__search-input')
             .wait(delayBetweenFetchesMs)
+            // .insert('.mn-connections__search-input', `${name} ${company}`)
             .insert('.mn-connections__search-input', name)
             .wait(2000)
             .click('.mn-connection-card__link')
@@ -180,11 +196,11 @@ async function fetchEmail(scrapper, {name, delayBetweenFetchesMs, maxRetries}) {
             .querySelector('.pv-contact-info__contact-type.ci-email a.pv-contact-info__contact-link')
             .getAttribute('href')
             .replace('mailto:', ''));
-        console.log(`✅  ${name}: ${email}`);
+        console.log(`✅  ${name} (${company}): ${email}`);
 
         return email;
     } catch (e) {
-        console.error(`❌  ${name} unable to extract email`);
+        console.error(`❌  ${name} (${company}): Unable to fetch email`);
     }
 }
 
