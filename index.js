@@ -4,7 +4,6 @@ const Nightmare = require('nightmare');
 
 
 const CSV_FILE = 'Connections.csv';
-const MAX_RETRIES = 3;
 /// Setup prompt attributes
 const OPTIONS = {
     userId: {
@@ -23,6 +22,11 @@ const OPTIONS = {
     maxCountToProcess: {
         initial: 100,
         message: 'Maximum number of connections to fetch',
+        type: 'number',
+    },
+    maxRetries: {
+        initial: 10,
+        message: 'Maximum number of retries per connection',
         type: 'number',
     },
 };
@@ -75,6 +79,7 @@ async function startProcessing(people) {
         {
             connectionsToProcess: Math.min(options.maxCountToProcess, people.length),
             delayBetweenFetchesMs: options.delayBetweenFetchesMs,
+            maxRetries: options.maxRetries,
         },
     );
     await scrapper.end();
@@ -108,13 +113,13 @@ async function login(scrapper, userId, password) {
 }
 
 
-async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetweenFetchesMs,}) {
+async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetweenFetchesMs, maxRetries,}) {
     console.log(`${connectionsToProcess}/${people.length} connections to extract...`);
     const knownEmails = [];
     let processedCount = 0;
     let retriesAllowed = 0;
     let breaked = false;
-    while(!breaked && retriesAllowed < MAX_RETRIES) {
+    while(!breaked && retriesAllowed < maxRetries) {
         for(const person of people) {
             if(processedCount >= connectionsToProcess) {
                 breaked = true;
@@ -131,8 +136,11 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
 
             const email = await fetchEmail(
                 scrapper,
-                `${person.firstName} ${person.lastName}`,
-                delayBetweenFetchesMs,
+                {
+                    name: `${person.firstName} ${person.lastName}`,
+                    delayBetweenFetchesMs: delayBetweenFetchesMs,
+                    maxRetries: maxRetries,
+                },
             );
             if(email) {
                 person.email = email;
@@ -151,7 +159,7 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
 
 /// Actual email extraction procedure
 /// Crawler looks for search input box, writes connection name, clicks on first result, copies connection's email
-async function fetchEmail(scrapper, name, delayBetweenFetchesMs) {
+async function fetchEmail(scrapper, {name, delayBetweenFetchesMs, maxRetries}) {
     try {
         await scrapper
             .wait('.nav-item--mynetwork')
