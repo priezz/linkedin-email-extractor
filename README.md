@@ -1,13 +1,13 @@
 # linkedin-email-extractor
-Works with redesigned LinkedIn only.
+
+### A node web scraper to extract your linkedin connection emails
+
+**Note**: Works with redesigned LinkedIn only.
 
 Thanks to [FutoRicky](https://github.com/FutoRicky/linkedin-email-extractor), [anhuin69](https://github.com/anhuin69/linkedin-email-extractor) and [reard96](https://github.com/reard96/linkedin-email-extractor
 ) for the initial code. I have completely rewrote it thought.
 
-_Note: After cycling through ~150-200 contacts, it appears that the email addresses begin to populate with your most recent contact's email...I believe that this is LinkedIn trying to prevent bots. Re-starting the script when this happens takes care of the problem. Of course, this is for eductational use only!_
-
-### A node web scraper to extract your linkedin connection emails
-*Currently not being maintained, but open to Pull Requests.*
+**Note**: _After cycling through ~150-200 contacts, it appears that the email addresses begin to populate with your most recent contact's email...I believe that this is LinkedIn trying to prevent bots. Re-starting the script when this happens takes care of the problem. Of course, this is for eductational use only!_
 
 ## Important Note
 Scraping data off of LinkedIn is against their [User Agreement](https://www.linkedin.com/legal/user-agreement). This is purely intended for educational purposes.

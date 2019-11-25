@@ -48,7 +48,10 @@ async function main() {
             )
             if(person.firstName && person.lastName) people.push(person)
         })
-        .on('end', () => startProcessing(people));
+        .on('end', async () => {
+            await startProcessing(people);
+            process.exit(0);
+        });
 }
 
 async function startProcessing(people) {
@@ -100,6 +103,7 @@ async function login(scrapper, userId, password) {
         return true;
     } catch (e) {
         console.error('An error occured while attempting to login to LinkedIn.');
+        return false;
     }
 }
 
@@ -108,31 +112,39 @@ async function fetchEmails(scrapper, people, {connectionsToProcess, delayBetween
     console.log(`${connectionsToProcess}/${people.length} connections to extract...`);
     const knownEmails = [];
     let processedCount = 0;
-    for(const person of people) {
-        if(processedCount >= connectionsToProcess) break;
-        if(person.email) {
-            knownEmails.push(person.email);
-            continue;
-        }
-        if(person.retries >= MAX_RETRIES) continue;
-
-        person.retries = +(person.retries || 0) + 1;
-        processedCount++;
-
-        const email = await fetchEmail(
-            scrapper,
-            `${person.firstName} ${person.lastName}`,
-            delayBetweenFetchesMs,
-        );
-        if(email) {
-            person.email = email;
-            if(knownEmails.includes(email)) {
-                console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
+    let retriesAllowed = 0;
+    let breaked = false;
+    while(!breaked && retriesAllowed < MAX_RETRIES) {
+        for(const person of people) {
+            if(processedCount >= connectionsToProcess) {
+                breaked = true;
                 break;
             }
-            knownEmails.push(email);
+            if(person.email) {
+                knownEmails.push(person.email);
+                continue;
+            }
+            if(person.retries > retriesAllowed) continue;
+
+            person.retries = +(person.retries || 0) + 1;
+            processedCount++;
+
+            const email = await fetchEmail(
+                scrapper,
+                `${person.firstName} ${person.lastName}`,
+                delayBetweenFetchesMs,
+            );
+            if(email) {
+                person.email = email;
+                if(knownEmails.includes(email)) {
+                    console.error(`Stopped due to bot prevention mechanism (returned ${email}). Please restart the script.`);
+                    break;
+                }
+                knownEmails.push(email);
+            }
+            writePeopleToFile(people);
         }
-        writePeopleToFile(people);
+        retriesAllowed++;
     }
 }
 

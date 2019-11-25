@@ -1,6 +1,6 @@
 {
   "name": "linkedin-email-extractor",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A node web scraper to extract your linkedin connection emails",
   "main": "index.js",
   "scripts": {
@@ -12,6 +12,6 @@
   "dependencies": {
     "fast-csv": "^3.4.0",
     "nightmare": "^3.0.2",
-    "prompts": "^2.2.1"
+    "prompts": "^2.3.0"
   }
 }
